@@ -19,10 +19,25 @@ function allowed(name: string) {
 }
 function fail(error: unknown) {
   if (error instanceof Error && error.message === 'UNAUTHORIZED') return reply({error:'Sign in again.'},401);
-  // Never log request bodies, keys, magic links or token hashes.
-  const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : 'unknown';
-  console.error('MindSync username operation failed:', code);
-  return reply({error:'Username service unavailable. Check the v2.2 SQL migration and server configuration.'},500);
+  const err = error as {
+    code?: string;
+    status?: number;
+    name?: string;
+  };
+
+  console.error('MindSync username operation failed:', {
+    code: err?.code || 'UNKNOWN',
+    status: err?.status || 500,
+    name: err?.name || 'UnknownError',
+  });
+
+  return reply(
+    {
+      error: 'Username service unavailable.',
+      code: err?.code || 'UNKNOWN',
+    },
+    500
+  );
 }
 export async function GET(req: Request) {
   try {
