@@ -34,7 +34,18 @@ export default function UsernameEntry({session}:{session:Session|null}) {
       if(!validKey.test(secret))throw Error('Enter your full 64-character recovery code.');
       if(action==='enter')remember(username,secret);
       const {r,data}=await call({action,username,key:secret});
-      if(!r.ok){if(data.recoveryRequired){setRecover(true);forget(username);}throw Error(data.error||'Unable to enter.');}
+      if (!r.ok) {
+  if (data.recoveryRequired) {
+    setRecover(true);
+    forget(username);
+  }
+
+  throw new Error(
+    `${data.error || 'Unable to enter.'}${
+      data.code ? ` (${data.code})` : ''
+    }`
+  );
+}
       if(action==='bind'||action==='rotate'){remember(username,secret);setProfile(username);setProof({name:username,key:secret,uid});setName(username);return;}
       const db=browserDb();if(!db)throw Error('Supabase is not configured.');
       const result=await db.auth.verifyOtp({token_hash:data.tokenHash,type:'email'});
