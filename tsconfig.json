@@ -19,7 +19,9 @@
         "name": "next"
       }
     ],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "allowJs": true,
+    "incremental": true
   },
   "include": [
     "next-env.d.ts",

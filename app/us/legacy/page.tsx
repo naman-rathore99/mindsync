@@ -1,0 +1,8 @@
+'use client';
+import {useState} from 'react';
+import {browserDb} from '../../../lib/browser';
+export default function LegacyTransfer(){
+ const [email,E]=useState(''),[password,P]=useState(''),[busy,B]=useState(false),[message,M]=useState('');
+ async function sign(reset=false){B(true);M('');try{const db=browserDb();if(!db)throw Error('Supabase is not configured.');if(reset){const origin=(process.env.NEXT_PUBLIC_APP_URL||location.origin).replace(/\/$/,'');const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:origin+'/us/reset'});if(error)throw error;M('Check your email for a reset link.');}else{const {error}=await db.auth.signInWithPassword({email,password});if(error)throw error;location.replace('/us');}}catch(e){M(typeof e==='object'&&e&&'message' in e?String(e.message):'Unable to transfer account.');}finally{B(false);}}
+ return <main data-theme="pink"><section><h1>Transfer your old account</h1><p>Only for accounts made before the username update. Sign in once, then choose your username to keep the same saved data.</p><form className="card" onSubmit={e=>{e.preventDefault();void sign()}}><label>Email</label><input required type="email" autoComplete="email" value={email} onChange={e=>E(e.target.value)}/><label>Old password</label><input required type="password" autoComplete="current-password" value={password} onChange={e=>P(e.target.value)}/><button className="primary" disabled={busy}>Transfer account</button><button type="button" className="ghost" disabled={busy||!email.trim()} onClick={()=>void sign(true)}>Forgot old password?</button></form><p role="status">{message}</p><a href="/us" className="ghost">Back to username entry</a></section></main>
+}
