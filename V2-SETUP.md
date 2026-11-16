@@ -1,0 +1,35 @@
+# MindSync 2.0 — private space (first implementation)
+
+This is an additive update based on the initial MindSync source. Do not replace your repository wholesale. Apply the accompanying Git patch to a new branch and review it. Keep a record of your current production deployment and take a database backup/export before changing production. No old session rows are removed, and the existing session-read/answer endpoint is unchanged. The new session-create endpoint optionally associates authenticated users with their new sessions. Guest links still use the original `?play=` and `?results=&key=` format. Set a stable public production domain before generating new links from a preview.
+
+## 1. Before preview deployment
+
+1. In a test Supabase project first, run the original `schema.sql` if needed, then run **all of `supabase/mindsync-v2.sql`** in a new SQL Editor query (copy the SQL file contents, not the Markdown filename). The migration is transactional and additive; do not drop the existing sessions table. For the production migration take a backup and use the existing Supabase project. Do not switch production to an empty database.
+2. In Supabase Auth, enable email/password login. Set production Site URL and allow the exact preview and production `/us` and `/us/reset` redirect URLs as needed. Configure email confirmation and password-reset delivery. Each partner uses a separate account; no names or photos required. If email limits prevent signup, configure SMTP or create/confirm the two accounts in the Supabase dashboard. Disable open signups after both accounts are created if the site is only for you two, while keeping sign-in enabled. Guest games still work without accounts.
+3. Keep existing Vercel variables `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or legacy anon key). Add `NEXT_PUBLIC_APP_URL` as the stable, publicly accessible production origin, without a path. Never expose service-role credentials in `NEXT_PUBLIC_` variables or commit them. For testing isolated preview projects, set preview variables to that preview's origin and test database instead. Rebuild/redeploy after variable changes.
+4. Install dependencies with `npm install`, run `npm run build`. Review any warnings and fix failures before merging. No new npm dependencies were added. Use Vercel preview if Android cannot build Next.js locally.
+
+## 2. What is included
+
+- `/us`: optional email/password accounts, one-use high-entropy pair invitation, maximum two members, private/shared text notes, phone file upload and in-browser voice/video recording, photo upload, media playback, edit title/caption, owner deletion, saved-link history, recovering an existing session with its private creator link, and persistent daily streaks.
+- Recordings stop after 60 seconds and all media files are limited to 20 MiB. Larger and interrupted uploads need retry; resumable upload and transcoding are not part of this release. Playback availability depends on browser codec support. Audio/video permission is requested only when recording; gallery/file selection is a fallback. Private media files are stored in a private bucket; signed playback URLs last five minutes and can be shared while valid. No end-to-end encryption is implemented.
+- Two-person streak: each partner explicitly checks in once per UTC day. Current/best streak calculated server-side, without dependence on browser cookies. Refresh the space to see the partner's updates (no realtime subscription yet).
+- New sessions created while signed in are saved to that author's account. Old anonymous sessions can be recovered only if their original creator key/link is available. Old guest links remain valid, except when the owner explicitly deletes a claimed session. Guest links are bearer links: anyone possessing the link can open it. No automatic expiry of stored content. The two-person workspace itself requires account authentication.
+- The existing game and surprise interfaces remain intact, apart from an added entry point, optional authenticated publishing and configurable link domain. Themes in the private space can be selected but are not yet synchronised as account preferences.
+
+## 3. Release checklist — all checks must pass on a preview
+
+- Open a pre-existing surprise and quiz link, including from incognito; verify old creator link, partner answers and scores.
+- Publish a new guest quiz and surprise; send the URLs to another browser; verify no Vercel login on public production origin. Check existing theme/music controls and all eight surprise worlds.
+- Create accounts A and B; connect by one-use invite; verify a third account C cannot join, view notes or obtain media URLs. For a site restricted to two accounts, disable signup after A and B are set up.
+- Verify A can see A's private notes, B cannot; A/B both see shared notes, B cannot edit/delete A's note. Test from two browsers and direct storage requests. Use actual accounts and no service-role key for these tests.
+- Text, gallery photo, microphone and both cameras: record, preview, upload, refresh, play on second phone, delete as author. Test denied permission, unsupported MIME, oversize, interrupted upload and expired signed URL. Confirm object removal in Storage. Test cleanup after failed inserts; account for network failures (orphan cleanup may require admin).
+- Create a signed-in game, sign out, clear site data, sign back in, recover the saved link and score. Recover an old anonymous session using the creator link. Verify B cannot claim an already-owned session or delete A's session. Delete one disposable test session and verify links no longer resolve.
+- Check in with A then B, refresh both, test current/best streak and UTC rollover. Sign out/in and verify data survives.
+- Test confirmation email, password reset and mobile keyboard/layout. Keep the previous production deployment available for rollback. Do not merge until review, build and live checks succeed.
+
+## 4. Known limitations
+
+No full production build or live database migration was executed in the packaging environment. This is a testable first implementation, not a production-verified release. Database/Storage quotas, backups and account retention still apply. Account deletion/unpair/re-pair flows, advanced reactions, notifications, realtime synchronization, scheduled surprises, media compression/resumable upload and server-side abuse/rate limits are future work. The migration uses the existing server role for legacy sessions; keep its key private. Deleting an account administratively can cascade its notes/couple records; design a full data-deletion and unpair workflow before exposing that feature. Storage objects may require separate cleanup in account deletion. Do not give third parties the creator link or private signed media URLs.
+
+Rollback: redeploy the previous app version (the original schema still works); do not automatically drop the new tables, since this would destroy v2 memories. If an upgrade is abandoned, leave the additive schema in place until you decide how to export or remove its contents.
